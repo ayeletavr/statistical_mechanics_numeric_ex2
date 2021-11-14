@@ -13,6 +13,10 @@ class System:
         self.r = r
         self.locations = [(0.25, 0.25), (0.25, 0.75), (0.75, 0.25), (0.75, 0.75)]
         self.velocities = [(vx1, vy1), (vx2, vy2), (vx3, vy3), (vx4, vy4)]
+        self.i_particle_v = None
+        self.j_particle_v = None
+        self.i_particle = None
+        self.j_particle = None
 
 def init_system(r, vx1, vy1, vx2, vy2, vx3, vy3, vx4, vy4):
     sys = System(r, vx1, vy1, vx2, vy2, vx3, vy3, vx4, vy4)
@@ -37,6 +41,7 @@ def time_to_collision_wall(sys):
 def time_to_pair_collision(sys):
     dtcolls = [] #6 values.
     new_v = [[]]
+    min_dtcoll = 10000000
     for i in range(0,4):
         for j in range (0,4):
             if i == j:
@@ -59,15 +64,20 @@ def time_to_pair_collision(sys):
                 else:
                     dtcoll = 10000000
                 dtcolls.append(dtcoll)
-
-                e_x = delta_x / np.sqrt(delta_l_squared)
-                e_y = delta_y / np.sqrt(delta_l_squared)
-                s_v = np.dot(delta_vx, e_x) + np.dot(delta_vy, e_y)
-                new_vx_i = sys.velocities[i][0] + e_x * s_v
-                new_vx_j = sys.velocities[j][0] + e_x * s_v
-                new_vy_i = sys.velocities[i][1] + e_y * s_v
-                new_vy_j = sys.velocities[j][1] + e_y * s_v
-                # note: i need to save new velocities only for particles i and j that were part of the collision (min dists).
+                if dtcoll < min_dtcoll:
+                    min_dtcoll = dtcoll
+                    e_x = delta_x / np.sqrt(delta_l_squared)
+                    e_y = delta_y / np.sqrt(delta_l_squared)
+                    s_v = np.dot(delta_vx, e_x) + np.dot(delta_vy, e_y)
+                    new_vx_i = sys.velocities[i][0] + e_x * s_v
+                    new_vx_j = sys.velocities[j][0] + e_x * s_v
+                    new_vy_i = sys.velocities[i][1] + e_y * s_v
+                    new_vy_j = sys.velocities[j][1] + e_y * s_v
+                    sys.i_particle_v = (new_vx_i, new_vy_i)
+                    sys.j_particle_v = (new_vx_j, new_vy_j)
+                    sys.i_particle = i
+                    sys.j_particle = j
+                    # note: i need to save new velocities only for particles i and j that were part of the collision (min dists).
     return dtcolls
 
 def find_dt_and_update_system(sys):
@@ -90,8 +100,10 @@ def find_dt_and_update_system(sys):
         sys.locations[i][1] = ney_y
         if wall_collision:
             if sys.locations[i][0] == 0 or sys.locations[i][0] == 1:
-                sys.locations[i][0] *= -1
+                sys.velocities[i][0] *= -1
             else:
-                sys.locations[i][1] += -1
+                sys.velocities[i][1] *= -1
         elif pair_collision:
+            sys.velocities[sys.i_particle][0], sys.velocities[sys.i_particle][1] = sys.i_particle_v[0], sys.i_particle_v[1]
+            sys.velocities[sys.j_particle][0], sys.velocities[sys.j_particle][1] = sys.j_particle_v[0], sys.j_particle_v[1]
 

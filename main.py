@@ -62,6 +62,10 @@ def time_to_collision_wall(sys):
             dtwall_y = (1 - sys.r - sys.locations[i][1]) / sys.velocities[i][1]
         elif sys.velocities[i][1] < 0:
             dtwall_y = (sys.locations[i][1] - sys.r) / np.abs(sys.velocities[i][1])
+        if dtwall_y <= 10 ** -4:
+            dtwall_y = 10 ** -4
+        if dtwall_x <= 10 ** -4:
+            dtwall_x = 10 ** -4
         dtwalls.append(min(dtwall_x, dtwall_y))
     return dtwalls
 
@@ -100,9 +104,11 @@ def time_to_pair_collision(sys):
                 # print("4r^2: ", 4 * np.power(sys.r, 2))
 
                 if gamma > 0 and s < 0:
-                    if (s + np.sqrt(gamma) <= 10 ** -3):
-                        # print ("that's not good")
-                        dtcoll = -(s + np.sqrt(gamma)) / delta_v_squared
+                    # if (s + np.sqrt(gamma) <= 10 ** -3):
+                    #     # print ("that's not good")
+                    dtcoll = -(s + np.sqrt(gamma)) / delta_v_squared
+                    if dtcoll <= 10 ** -4:
+                        dtcoll = 10 ** -4
                 else:
                     dtcoll = 10000000
                 dtcolls.append(dtcoll)
@@ -219,7 +225,7 @@ def simulate(sys, dtstore, N):
 
         if t + dt >= dtstore:
             update_system(sys, dt)
-            print("step: ", collides_ctr)
+            # print("step: ", collides_ctr)
             # print("updated locations: ", sys.locations)
             # print("updated velocities: ", sys.velocities)
             p1_locations.append((sys.locations[0][0], sys.locations[0][1])) # append (x,y) after dt for qa1
@@ -301,7 +307,21 @@ def qa1():
     plt.colorbar()
     plt.show()
 
-
+def qb1():
+    radiuses = np.arange(0.1, 0.23, 0.02)
+    for r in radiuses:
+        x, y = zip(*reference_compute(r))
+        heatmap, xedges, yedges = np.histogram2d(x, y, bins=10) # limit x and y locations to [0, 0.5]?
+        extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+        plt.clf()
+        plt.imshow(heatmap.T, extent=extent, origin='lower')
+        plt.xlim(0, 1)
+        plt.ylim(0, 1)
+        plt.title('Location sensitivity - probability to be in [0,0.5] for x and y')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.colorbar()
+        plt.show()
 
 
 if __name__ == "__main__":

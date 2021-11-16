@@ -20,6 +20,7 @@ class System:
         self.v_tot_squared = np.sum(np.power(self.velocities[:, 0], 2)) + np.sum(np.power(self.velocities[:, 1], 2))
         self.wall_collision = False
         self.pair_collision = False
+        self.particle_collided_with_wall = None
 
 def init_system(r, vx1, vy1, vx2, vy2, vx3, vy3, vx4, vy4):
     sys = System(r, vx1, vy1, vx2, vy2, vx3, vy3, vx4, vy4)
@@ -32,11 +33,11 @@ def time_to_collision_wall(sys):
     for i in range(4):
         if sys.velocities[i][0] > 0: #vx is positive:
             dtwall_x = (1 - sys.r - sys.locations[i][0]) / sys.velocities[i][0]
-        else:
+        elif sys.velocities[i][0] < 0:
             dtwall_x = (sys.locations[i][0] - sys.r) / np.abs(sys.velocities[i][0])
         if sys.velocities[i][1] > 0: # vy is positive:
             dtwall_y = (1 - sys.r - sys.locations[i][1]) / sys.velocities[i][1]
-        else:
+        elif sys.velocities[i][1] < 0:
             dtwall_y = (sys.locations[i][1] - sys.r) / np.abs(sys.velocities[i][1])
         dtwalls.append(min(dtwall_x, dtwall_y))
     return dtwalls
@@ -45,13 +46,10 @@ def time_to_pair_collision(sys):
     dtcolls = [] #6 values.
     new_v = [[]]
     min_dtcoll = 10000000
-    for i in range(0,4):
-        for j in range (0,4):
-            if i == j:
-                pass # a particle cannot collide itself.
-            else:
-
-                delta_x = sys.locations[j][0] - sys.locations[i][0] #xj - xi
+    for i in range(4):
+        for j in range(4):
+            if i != j:
+                delta_x = sys.locations[j][0] - sys.locations[i][0] # xj - xi
                 delta_y = sys.locations[j][1] - sys.locations[i][1] # yj - yi
                 delta_l_squared = np.power(delta_x, 2) + np.power(delta_y, 2)
 
@@ -61,13 +59,22 @@ def time_to_pair_collision(sys):
 
                 s = np.dot(delta_vx, delta_x) + np.dot(delta_vy, delta_y)
                 gamma = np.power(s, 2) - delta_v_squared * (delta_l_squared - 4 * np.power(sys.r, 2))
+                # print("s: ", s)
+                # print("gamma: ", gamma)
+                # print("delta_x: ", delta_x, "delta_y: ", delta_y)
+                # print("delta_vx: ", delta_vx, "delta_vy: ", delta_vy)
+                # print("delta_l_squared: ", delta_l_squared)
+                # print("delta_v_squared: ", delta_v_squared)
+                # print("4r^2: ", 4 * np.power(sys.r, 2))
 
                 if gamma > 0 and s < 0:
-                    dtcoll = (s + np.sqrt(gamma)) / delta_v_squared
+                    if (s + np.sqrt(gamma) == 0):
+                        print ("noooo")
+                    dtcoll = -(s + np.sqrt(gamma)) / delta_v_squared
                 else:
                     dtcoll = 10000000
                 dtcolls.append(dtcoll)
-                if dtcoll < min_dtcoll:
+                if dtcoll < min_dtcoll: # save information for the min dtcoll in dtcolls.
                     min_dtcoll = dtcoll
                     e_x = delta_x / np.sqrt(delta_l_squared)
                     e_y = delta_y / np.sqrt(delta_l_squared)
@@ -81,13 +88,18 @@ def time_to_pair_collision(sys):
                     sys.i_particle = i
                     sys.j_particle = j
                     # note: i need to save new velocities only for particles i and j that were part of the collision (min dists).
+    # print(dtcolls)
+    # print(len(dtcolls))
     return dtcolls
 
 def find_dt_and_update_system(sys):
     dtwalls = time_to_collision_wall(sys)
     dtcolls = time_to_pair_collision(sys)
     min_walls = np.min(dtwalls)
+    sys.particle_collided_with_wall = dtwalls.index(min_walls)
     min_colls = np.min(dtcolls)
+    # print(dtcolls)
+    # print("min wall: ", min_walls, "min coll: ", min_colls)
     if min_walls < min_colls:
         dt = min_walls
         sys.wall_collision = True
@@ -95,6 +107,8 @@ def find_dt_and_update_system(sys):
         dt = min_colls
         sys.pair_collision = True
 
+    print(dtcolls)
+    print(dtwalls)
     return dt
 
 def update_system(sys, dt):
@@ -104,14 +118,23 @@ def update_system(sys, dt):
         # sys.locations[i][0] = new_x
         # sys.locations[i][1] = ney_y
         sys.locations[i] = (new_x, new_y)
-        if sys.wall_collision:
-            if sys.locations[i][0] == 0 or sys.locations[i][0] == 1:
-                sys.velocities[i][0] *= -1
-            else:
-                sys.velocities[i][1] *= -1
-        elif sys.pair_collision:
-            sys.velocities[sys.i_particle][0], sys.velocities[sys.i_particle][1] = sys.i_particle_v[0], sys.i_particle_v[1]
-            sys.velocities[sys.j_particle][0], sys.velocities[sys.j_particle][1] = sys.j_particle_v[0], sys.j_particle_v[1]
+        # print("new location of ", i, " :", sys.locations[i])
+    if sys.wall_collision:
+        # print(sys.locations[sys.particle_collided_with_wall])
+        if sys.locations[sys.particle_collided_with_wall][0] <= 0 + sys.r or sys.locations[sys.particle_collided_with_wall][0] >= 1 - sys.r:
+            # print("hi")
+            sys.velocities[sys.particle_collided_with_wall][0] *= -1
+        elif sys.locations[sys.particle_collided_with_wall][1] <= 0 + sys.r or sys.locations[sys.particle_collided_with_wall][1] >= 1 - sys.r:
+            # print("hhh")
+            sys.velocities[sys.particle_collided_with_wall][1] *= -1
+        else:
+            print("not supposed to be here")
+    elif sys.pair_collision:
+        sys.velocities[sys.i_particle] = (sys.i_particle_v[0], sys.i_particle_v[1])
+        print("new v of i: ", sys.velocities[sys.i_particle])
+        sys.velocities[sys.j_particle] = (sys.j_particle_v[0], sys.j_particle_v[1])
+        # sys.velocities[sys.i_particle][0], sys.velocities[sys.i_particle][1] = sys.i_particle_v[0], sys.i_particle_v[1]
+        # sys.velocities[sys.j_particle][0], sys.velocities[sys.j_particle][1] = sys.j_particle_v[0], sys.j_particle_v[1]
 
 # -------------------- Tracking particles ----------------------
 
@@ -126,21 +149,26 @@ def simulate(sys, dtstore, N):
     t = 0
     p1_locations = []
     while collides_ctr < N:
+        sys.wall_collision = False
+        sys.pair_collision = False
         dt = find_dt_and_update_system(sys)
         if t + dt >= dtstore:
             update_system(sys, dt)
+            print("step: ", collides_ctr)
+            print("updated locations: ", sys.locations)
+            print("updated velocities: ", sys.velocities)
             p1_locations.append((sys.locations[0][0], sys.locations[0][1])) # append (x,y) after dt for qa1
             t = 0
             collides_ctr += 1
         else:
-            t += 1
+            t += dt
     return p1_locations
 
 # ---------- Computes -----------
 def reference_compute(r):
     # velocities = [(0.21, 0.12), (0.71, 0.18), (-0.23, -0.79), (0.78, 0.34583)]
     sys = init_system(r, 0.21, 0.12, 0.71, 0.18, -0.23, -0.79, 0.78, 0.34583)
-    N = 10000000
+    N = 10000
     dtstore = 1.0
     p1_arr = simulate(sys, dtstore, N)
     return p1_arr
@@ -156,9 +184,24 @@ def comparing_computes():
 def qa1():
     x_axis = np.linspace(0, 1, 10)
     y_axis = np.linspace(0, 1, 10)
-    # x, y = np.meshgrid(x_axis, y_axis, sparse=True)
+    x_bounds, y_bounds = np.meshgrid(x_axis, y_axis, sparse=True)
     x, y = zip(*reference_compute(r=0.15))
     plt.scatter(x, y)
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.title('heatmap of one particle')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.show()
+    heatmap, xedges, yedges = np.histogram2d(x, y, bins=10)
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    plt.clf()
+    plt.imshow(heatmap.T, extent=extent, origin='lower')
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.title('heatmap of one particle')
+    plt.xlabel('x')
+    plt.ylabel('y')
     plt.show()
 
 if __name__ == "__main__":

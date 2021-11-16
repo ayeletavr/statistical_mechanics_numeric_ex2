@@ -23,6 +23,18 @@ class System:
         self.wall_collision = False
         self.pair_collision = False
         self.particle_collided_with_wall = None
+        self.v_x0 = []
+        self.v_x1 = []
+        self.v_x2 = []
+        self.v_x3 = []
+        self.v_y0 = []
+        self.v_y1 = []
+        self.v_y2 = []
+        self.v_y3 = []
+        self.v_abs0 = []
+        self.v_abs1 = []
+        self.v_abs2 = []
+        self.v_abs3 = []
 
 def init_system(r, vx1, vy1, vx2, vy2, vx3, vy3, vx4, vy4):
     """
@@ -142,6 +154,7 @@ def update_system(sys, dt):
     :param sys: system
     :param dt: time to nect collision.
     """
+
     for i in range(4): # update locations
         new_x = sys.locations[i][0] + sys.velocities[i][0] * dt
         new_y = sys.locations[i][1] + sys.velocities[i][1] * dt
@@ -160,14 +173,27 @@ def update_system(sys, dt):
         # elif sys.locations[sys.particle_collided_with_wall][1] <= 0 + sys.r or sys.locations[sys.particle_collided_with_wall][1] >= 1 - sys.r:
             # print("hhh")
             sys.velocities[sys.particle_collided_with_wall] = (sys.velocities[sys.particle_collided_with_wall][0], sys.velocities[sys.particle_collided_with_wall][1] * -1)
+
     elif sys.pair_collision:
         sys.velocities[sys.i_particle] = (sys.i_particle_v[0], sys.i_particle_v[1])
         # print("new v of i: ", sys.velocities[sys.i_particle])
         sys.velocities[sys.j_particle] = (sys.j_particle_v[0], sys.j_particle_v[1])
         # sys.velocities[sys.i_particle][0], sys.velocities[sys.i_particle][1] = sys.i_particle_v[0], sys.i_particle_v[1]
         # sys.velocities[sys.j_particle][0], sys.velocities[sys.j_particle][1] = sys.j_particle_v[0], sys.j_particle_v[1]
-    else:
-        print("not supposed to happen")
+    sys.v_x0.append(sys.velocities[0][0])
+    sys.v_x1.append(sys.velocities[1][0])
+    sys.v_x2.append(sys.velocities[2][0])
+    sys.v_x3.append(sys.velocities[3][0])
+
+    sys.v_y0.append(sys.velocities[0][1])
+    sys.v_y1.append(sys.velocities[1][1])
+    sys.v_y2.append(sys.velocities[2][1])
+    sys.v_y3.append(sys.velocities[3][1])
+
+    sys.v_abs0.append(np.sqrt(sys.velocities[0][0] ** 2 + sys.velocities[0][1] ** 2))
+    sys.v_abs1.append(np.sqrt(sys.velocities[1][0] ** 2 + sys.velocities[1][1] ** 2))
+    sys.v_abs0.append(np.sqrt(sys.velocities[2][0] ** 2 + sys.velocities[2][1] ** 2))
+    sys.v_abs0.append(np.sqrt(sys.velocities[3][0] ** 2 + sys.velocities[3][1] ** 2))
 
 # -------------------- Tracking particles ----------------------
 
@@ -201,13 +227,51 @@ def simulate(sys, dtstore, N):
             collides_ctr += 1
         else:
             t += dt
+
+    print(sys.v_x0)
+    print(len(sys.v_x0))
+    ### qb1
+    plt.hist(np.array(sys.v_x0), np.linspace(-2, 2, 200), density=True, label="particle number 0", histtype=u'step')
+    plt.hist(np.array(sys.v_x1), np.linspace(-2, 2, 200), density=True, label="particle number 1", histtype=u'step')
+    plt.hist(np.array(sys.v_x2), np.linspace(-2, 2, 200), density=True, label="particle number 2", histtype=u'step')
+    plt.hist(np.array(sys.v_x3), np.linspace(-2, 2, 200), density=True, label="particle number 3", histtype=u'step')
+    plt.title("v_x for all particles")
+    plt.legend()
+    plt.xlabel("v_x")
+    plt.ylabel("density")
+    plt.show()
+
+    #vy plot:
+    plt.hist(np.array(sys.v_y0), np.linspace(-2, 2, 200), density=True, label="particle number 0", histtype=u'step')
+    plt.hist(np.array(sys.v_y1), np.linspace(-2, 2, 200), density=True, label="particle number 1", histtype=u'step')
+    plt.hist(np.array(sys.v_y2), np.linspace(-2, 2, 200), density=True, label="particle number 2", histtype=u'step')
+    plt.hist(np.array(sys.v_y3), np.linspace(-2, 2, 200), density=True, label="particle number 3", histtype=u'step')
+    plt.title("v_y for all particles")
+    plt.legend()
+    plt.xlabel("v_y")
+    plt.ylabel("density")
+    plt.show()
+
+    #plt vabs:
+    plt.hist(np.array(sys.v_abs0), np.linspace(-2, 2, 200), density=True, label="particle number 0", histtype=u'step')
+    plt.hist(np.array(sys.v_abs1), np.linspace(-2, 2, 200), density=True, label="particle number 1", histtype=u'step')
+    plt.hist(np.array(sys.v_abs2), np.linspace(-2, 2, 200), density=True, label="particle number 2", histtype=u'step')
+    plt.hist(np.array(sys.v_abs3), np.linspace(-2, 2, 200), density=True, label="particle number 3", histtype=u'step')
+    plt.title("v_abs for all particles")
+    plt.legend()
+    plt.xlabel("v_abs")
+    plt.ylabel("density")
+    plt.show()
+
     return p1_locations
+
+
 
 # ---------- Computes -----------
 def reference_compute(r):
     # velocities = [(0.21, 0.12), (0.71, 0.18), (-0.23, -0.79), (0.78, 0.34583)]
     sys = init_system(r, 0.21, 0.12, 0.71, 0.18, -0.23, -0.79, 0.78, 0.34583)
-    N = 10 ** 7
+    N = 10 ** 6
     dtstore = 1.0
     p1_arr = simulate(sys, dtstore, N)
     return p1_arr
@@ -237,8 +301,12 @@ def qa1():
     plt.colorbar()
     plt.show()
 
+
+
+
 if __name__ == "__main__":
     qa1()
+
 
 
 
